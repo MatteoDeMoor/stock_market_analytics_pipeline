@@ -59,6 +59,18 @@ SELECT
     ) AS cumulative_return_pct
 FROM base;
 
+CREATE OR REPLACE VIEW analytics.v_price_history AS
+SELECT
+    symbol,
+    price_date,
+    open_price,
+    high_price,
+    low_price,
+    close_price,
+    volume
+FROM staging.daily_prices
+ORDER BY symbol, price_date;
+
 ------------
 
 SELECT *
@@ -72,5 +84,10 @@ LIMIT 20;
 
 SELECT *
 FROM analytics.v_cumulative_returns
+ORDER BY symbol, price_date DESC
+LIMIT 20;
+
+SELECT *
+FROM analytics.v_price_history
 ORDER BY symbol, price_date DESC
 LIMIT 20;

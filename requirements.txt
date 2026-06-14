@@ -5,3 +5,6 @@ python-dotenv
 pandas
 psycopg[binary]
 pyyaml
+streamlit
+plotly
+sqlalchemy
