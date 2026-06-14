@@ -1,104 +1,170 @@
 # Market Data Engineering Pipeline
 
-A local end-to-end data engineering project that ingests stock and ETF market data from an external API, stores raw and transformed data in PostgreSQL, and visualizes financial performance through a dashboard.
+A local end-to-end data engineering portfolio project that ingests stock and ETF market data from the Alpha Vantage API, stores raw and transformed data in PostgreSQL, and visualizes financial performance through a Streamlit dashboard.
+
+The project is built to demonstrate practical data engineering skills such as API ingestion, PostgreSQL modelling, raw/staging/analytics layers, SQL transformations, pipeline logging, Docker-based local development, and dashboarding.
+
+## Project Status
+
+Current status: **Local MVP working**.
+
+The current version can:
+
+- Read stock symbols from a YAML configuration file
+- Fetch daily price data from the Alpha Vantage API
+- Store raw API responses as JSONB in PostgreSQL
+- Transform raw JSON responses into structured daily price records
+- Upsert price records into a staging table
+- Expose analytics views for price history, latest prices, daily returns and cumulative returns
+- Display the results in a Streamlit dashboard
+- Show pipeline run history from a metadata table
+
+The next major goal is to move from a local setup to a cloud-ready architecture using **Cloud PostgreSQL, GitHub Actions and Streamlit Community Cloud**.
 
 ## Project Overview
 
-This project is a practical data engineering portfolio project focused on financial market data.
+This project simulates a realistic data engineering workflow using free, local and open-source tools.
 
-The goal is to build a small but realistic pipeline that extracts daily stock and ETF prices from an external API, stores the original API responses in PostgreSQL, transforms the data into analytics-ready tables, and visualizes the results in a dashboard.
+The goal is to build a small but professional market data pipeline that extracts daily stock and ETF prices from an external API, stores the original API responses, transforms the data into analytics-ready structures, and visualizes the results in a dashboard.
 
-The first version focuses on a small watchlist of stocks and ETFs such as:
+The first working version currently focuses on a small watchlist because the free Alpha Vantage tier has request limits.
+
+Currently active example symbols:
 
 - AAPL
 - MSFT
 - NVDA
+
+Additional prepared symbols may include:
+
+- GOOGL
+- AMZN
+- META
+- TSLA
 - SPY
 - QQQ
-
-Future versions may include additional ETFs, crypto assets, financial fundamentals, orchestration, data quality checks, and a custom API layer.
+- VTI
+- IWM
+- GLD
+- NFLX
 
 ## Why This Project?
 
-This project is designed to simulate a real-world data engineering workflow using free and local tools.
+This project is designed to show more than just dashboarding. It focuses on the full data engineering flow from API ingestion to analytics-ready data.
 
 It covers several important data engineering concepts:
 
 - Consuming external APIs
 - Working with API keys
 - Managing secrets with environment variables
-- Handling JSON responses
-- Storing raw API responses
-- Designing PostgreSQL schemas
-- Building staging and analytics layers
-- Performing incremental loads
-- Using upserts to avoid duplicate data
-- Adding pipeline logging and observability
-- Creating SQL-based analytics views
-- Building a dashboard on top of PostgreSQL
+- Handling API rate limits
+- Parsing JSON responses
+- Storing raw API responses in PostgreSQL as JSONB
+- Designing layered database schemas
+- Building raw, staging, analytics and metadata layers
+- Using upserts to avoid duplicate records
+- Creating SQL analytics views
+- Tracking pipeline runs and errors
+- Building a Streamlit dashboard on top of PostgreSQL
+- Preparing the project for cloud deployment
 
 ## Tech Stack
 
-The initial version of the project uses:
+Current stack:
 
 - Python
 - PostgreSQL
 - Docker Compose
+- pgAdmin
 - Alpha Vantage API
 - SQL
 - Streamlit
 - pandas
-- psycopg or SQLAlchemy
+- Plotly
+- psycopg
+- SQLAlchemy
 - python-dotenv
 - PyYAML
+- requests
+
+Planned cloud/deployment stack:
+
+- Neon or Supabase Postgres
+- GitHub Actions
+- Streamlit Community Cloud
+- GitHub Secrets
+- Streamlit Secrets
 
 Possible future additions:
 
 - dbt
 - Prefect
-- FastAPI
-- Metabase
-- Grafana
-- GitHub Actions
 - pytest
+- FastAPI
+- Metabase or Grafana
 
 ## High-Level Architecture
 
+Current local architecture:
+
 ```text
-Financial Market API
+Alpha Vantage API
         ↓
-Python Extractor
+Python API client
         ↓
-Raw API Response Storage
+Pipeline runner
         ↓
-PostgreSQL Raw Layer
+raw.api_responses in PostgreSQL
         ↓
-PostgreSQL Staging Layer
+Python transformation step
         ↓
-PostgreSQL Analytics Layer
+staging.daily_prices
         ↓
-Streamlit Dashboard
+analytics SQL views
+        ↓
+read_data.py
+        ↓
+Streamlit dashboard
+```
+
+Target cloud architecture:
+
+```text
+Alpha Vantage API
+        ↓
+GitHub Actions scheduled workflow
+        ↓
+Python pipeline
+        ↓
+Cloud PostgreSQL database
+        ↓
+Streamlit Community Cloud dashboard
+        ↓
+Public portfolio link
 ```
 
 ## Data Flow
 
-1. The pipeline reads a list of stock and ETF symbols from a configuration file.
-2. For each symbol, the pipeline calls the external market data API.
-3. The raw JSON response is stored in PostgreSQL.
-4. The response is parsed into structured daily price records.
-5. The structured records are loaded into analytics tables using upserts.
-6. SQL views calculate metrics such as daily returns and cumulative returns.
-7. A Streamlit dashboard visualizes the results.
+1. The pipeline reads a list of stock and ETF symbols from `config/symbols.yaml`.
+2. For each active symbol, the pipeline calls the Alpha Vantage `TIME_SERIES_DAILY` endpoint.
+3. The raw JSON response is stored in `raw.api_responses`.
+4. The response is parsed into structured daily price rows.
+5. The structured records are upserted into `staging.daily_prices`.
+6. SQL views in the analytics layer prepare the data for reporting.
+7. `read_data.py` reads from the analytics views.
+8. The Streamlit dashboard displays prices, returns, volume and pipeline run history.
+
+Important design choice: the dashboard does **not** call the external API directly. The dashboard only reads from PostgreSQL. This improves caching, performance, reproducibility and rate-limit handling.
 
 ## Repository Structure
 
 ```text
-market-data-engineering-pipeline/
+stock_market_analytics_pipeline/
 │
 ├── README.md
-├── requirements.txt
-├── .env.example
 ├── .gitignore
+├── .env.example
+├── requirements.txt
 ├── docker-compose.yml
 │
 ├── config/
@@ -107,36 +173,33 @@ market-data-engineering-pipeline/
 ├── sql/
 │   ├── 001_create_schemas.sql
 │   ├── 002_create_tables.sql
-│   └── 003_create_views.sql
+│   ├── 003_create_staging_tables.sql
+│   └── 004_create_analytics_views.sql
 │
 ├── src/
+│   ├── api_client.py
 │   ├── config.py
 │   ├── db.py
-│   ├── api_client.py
 │   ├── load_raw.py
-│   ├── transform_prices.py
+│   ├── read_data.py
 │   ├── run_pipeline.py
-│   └── logging_config.py
+│   └── transform_prices.py
 │
-├── dashboard/
-│   └── app.py
-│
-└── tests/
-    ├── test_api_client.py
-    └── test_transform_prices.py
+└── dashboard/
+    └── app.py
 ```
 
 ## Database Design
 
-The PostgreSQL database is organised into four schemas:
+The PostgreSQL database is organized into four schemas:
 
 ### `raw`
 
-Stores the original API responses as JSONB.
+Stores original API responses as JSONB.
 
-This layer makes it possible to reprocess historical API responses without calling the external API again.
+This allows the project to keep the source data exactly as received from the API. It also makes it possible to reprocess historical API responses without calling the external API again.
 
-Example table:
+Main table:
 
 ```text
 raw.api_responses
@@ -144,45 +207,48 @@ raw.api_responses
 
 ### `staging`
 
-Stores parsed and cleaned data before it is loaded into the analytics layer.
+Stores parsed and structured intermediate data.
 
-Example table:
+Main table:
 
 ```text
 staging.daily_prices
 ```
 
-### `analytics`
-
-Stores analysis-ready dimension and fact tables.
-
-Example tables:
+This table contains one row per symbol and price date. The primary key is:
 
 ```text
-analytics.dim_symbol
-analytics.fact_daily_price
+symbol + price_date
 ```
 
-Example views:
+This makes safe upserts possible and prevents duplicate price rows.
+
+### `analytics`
+
+Contains analysis-ready SQL views used by the dashboard.
+
+Current views:
 
 ```text
+analytics.v_price_history
 analytics.v_latest_prices
 analytics.v_daily_returns
 analytics.v_cumulative_returns
-analytics.v_moving_averages
 ```
 
 ### `metadata`
 
-Stores pipeline run information and logging metadata.
+Stores pipeline run information.
 
-Example table:
+Main table:
 
 ```text
 metadata.pipeline_runs
 ```
 
-## Planned Database Tables
+This table tracks pipeline status, start time, finish time, loaded record count and error messages.
+
+## Current Database Objects
 
 ### `metadata.pipeline_runs`
 
@@ -202,7 +268,7 @@ error_message
 
 ### `raw.api_responses`
 
-Stores raw API responses.
+Stores raw Alpha Vantage API responses.
 
 Main columns:
 
@@ -218,59 +284,91 @@ status_code
 ingested_at
 ```
 
-### `analytics.dim_symbol`
+### `staging.daily_prices`
 
-Stores information about each stock or ETF symbol.
+Stores parsed daily OHLCV price data.
 
 Main columns:
 
 ```text
-symbol_id
 symbol
-name
-asset_type
-currency
-exchange
-is_active
-```
-
-### `analytics.fact_daily_price`
-
-Stores historical daily price data.
-
-Main columns:
-
-```text
-symbol_id
 price_date
 open_price
 high_price
 low_price
 close_price
-adjusted_close
 volume
+source_response_id
 ingested_at
 ```
 
-The primary key is:
+Primary key:
 
 ```text
-symbol_id + price_date
+symbol + price_date
 ```
 
-This allows the pipeline to safely upsert records and avoid duplicates.
+### `analytics.v_price_history`
+
+Used for historical price charts.
+
+Contains:
+
+```text
+symbol
+price_date
+open_price
+high_price
+low_price
+close_price
+volume
+```
+
+### `analytics.v_latest_prices`
+
+Used to show the latest available price per symbol.
+
+Contains the most recent price row for every symbol.
+
+### `analytics.v_daily_returns`
+
+Calculates the daily percentage return using the previous close price.
+
+Useful for:
+
+- Daily return charts
+- Top movers
+- Volatility analysis
+
+### `analytics.v_cumulative_returns`
+
+Calculates cumulative return since the first available date for each symbol.
+
+This is useful because prices between different stocks are not directly comparable, while returns are easier to compare.
 
 ## API Provider
 
-The first version of this project uses Alpha Vantage as the financial market data provider.
+The first version uses the Alpha Vantage API.
 
-The API key is stored locally in a `.env` file and should never be committed to GitHub.
+Current endpoint:
+
+```text
+TIME_SERIES_DAILY
+```
+
+Example request format:
+
+```text
+https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AAPL&apikey=YOUR_API_KEY
+```
+
+The API key is stored in a local `.env` file and should never be committed to GitHub.
 
 ## Environment Variables
 
 Create a local `.env` file based on `.env.example`.
 
-Example:
+Example `.env`:
 
 ```env
 ALPHA_VANTAGE_API_KEY=your_api_key_here
@@ -281,13 +379,45 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 ```
 
+Example `.env.example`:
+
+```env
+ALPHA_VANTAGE_API_KEY=
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=market_data
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+```
+
+## Security Notes
+
+The `.env` file should never be committed to GitHub.
+
+Make sure `.gitignore` contains:
+
+```text
+.env
+.venv/
+__pycache__/
+*.pyc
+```
+
+Important security lessons:
+
+- Do not print full API request URLs if they contain an API key
+- Do not commit `.env` to GitHub
+- Use GitHub Secrets for GitHub Actions
+- Use Streamlit Secrets for Streamlit Community Cloud
+- Rotate the API key if it was accidentally exposed
+
 ## Local Setup
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/market-data-engineering-pipeline.git
-cd market-data-engineering-pipeline
+git clone https://github.com/your-username/stock_market_analytics_pipeline.git
+cd stock_market_analytics_pipeline
 ```
 
 ### 2. Create a virtual environment
@@ -296,15 +426,15 @@ cd market-data-engineering-pipeline
 python -m venv .venv
 ```
 
-Activate it:
+Activate it on Windows:
 
 ```bash
-# Windows
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 ```
 
+Activate it on macOS/Linux:
+
 ```bash
-# macOS / Linux
 source .venv/bin/activate
 ```
 
@@ -316,37 +446,54 @@ pip install -r requirements.txt
 
 ### 4. Configure environment variables
 
-Create a `.env` file:
+Create a `.env` file based on `.env.example` and add your API key and PostgreSQL credentials.
 
-```bash
-cp .env.example .env
-```
-
-Then add your API key and PostgreSQL credentials.
-
-### 5. Start PostgreSQL with Docker Compose
+### 5. Start PostgreSQL and pgAdmin
 
 ```bash
 docker compose up -d
 ```
 
-This starts a local PostgreSQL database.
+PostgreSQL runs locally on:
 
-Optionally, pgAdmin can be included in the Docker Compose setup to inspect the database through a browser.
+```text
+localhost:5432
+```
 
-### 6. Create database schemas and tables
+pgAdmin runs locally on:
+
+```text
+http://localhost:5050
+```
+
+When connecting from pgAdmin to PostgreSQL inside Docker, use this host:
+
+```text
+postgres
+```
+
+When connecting from Python on your machine, use this host:
+
+```text
+localhost
+```
+
+### 6. Create schemas, tables and views
 
 Run the SQL scripts in order:
 
 ```bash
 psql -h localhost -U postgres -d market_data -f sql/001_create_schemas.sql
 psql -h localhost -U postgres -d market_data -f sql/002_create_tables.sql
-psql -h localhost -U postgres -d market_data -f sql/003_create_views.sql
+psql -h localhost -U postgres -d market_data -f sql/003_create_staging_tables.sql
+psql -h localhost -U postgres -d market_data -f sql/004_create_analytics_views.sql
 ```
+
+Alternatively, run the SQL scripts manually in pgAdmin.
 
 ### 7. Configure symbols
 
-Edit the file:
+Edit:
 
 ```text
 config/symbols.yaml
@@ -359,9 +506,13 @@ symbols:
   - AAPL
   - MSFT
   - NVDA
-  - SPY
-  - QQQ
+  # - GOOGL
+  # - AMZN
+  # - SPY
+  # - QQQ
 ```
+
+Only a few symbols are active by default to respect the free Alpha Vantage API limits.
 
 ### 8. Run the pipeline
 
@@ -369,91 +520,203 @@ symbols:
 python src/run_pipeline.py
 ```
 
+The pipeline will:
+
+- Create a pipeline run record
+- Fetch data from Alpha Vantage
+- Store raw API responses
+- Transform raw JSON into daily price records
+- Upsert rows into `staging.daily_prices`
+- Update the pipeline run status
+
 ### 9. Start the dashboard
 
 ```bash
 streamlit run dashboard/app.py
 ```
 
-## Example Analytics
+The dashboard is available locally at:
 
-The analytics layer can be used to answer questions such as:
+```text
+http://localhost:8501
+```
+
+## Dashboard Features
+
+The Streamlit dashboard currently includes:
+
+- Symbol selector in the sidebar
+- KPI cards for latest close price, latest date, latest volume and total return
+- Latest prices table
+- Close price history chart
+- Volume history chart
+- Cumulative return chart
+- Daily returns chart
+- Latest rows table for the selected symbol
+- Pipeline monitoring table
+- Latest pipeline run status cards
+
+## Example Analytics Questions
+
+The analytics layer can answer questions such as:
 
 - What is the latest available price for each symbol?
-- Which symbol had the highest daily return?
-- How did each stock or ETF perform over time?
-- What is the cumulative return since the start date?
-- How do individual stocks compare with benchmark ETFs?
-- Which symbols show the highest volatility?
+- How has a symbol's close price evolved over time?
+- What is the cumulative return since the first available date?
+- What was the daily return for each trading day?
+- What was the latest trading volume?
 - When was the last successful pipeline run?
+- How many records were loaded in the latest pipeline run?
 
-## Dashboard Ideas
+## Useful SQL Checks
 
-The Streamlit dashboard may include:
+Check recent pipeline runs:
 
-- Latest price per symbol
-- Historical close price chart
-- Cumulative return chart
-- Daily return chart
-- Trading volume chart
-- Moving average chart
-- Symbol comparison
-- Pipeline status overview
-- Last successful data refresh
+```sql
+SELECT *
+FROM metadata.pipeline_runs
+ORDER BY started_at DESC;
+```
 
-## Project Roadmap
+Check number of records per symbol:
 
-### Version 1 — MVP
+```sql
+SELECT symbol, COUNT(*) AS records
+FROM staging.daily_prices
+GROUP BY symbol
+ORDER BY symbol;
+```
+
+Check latest prices:
+
+```sql
+SELECT *
+FROM analytics.v_latest_prices
+ORDER BY symbol;
+```
+
+Check recent price history:
+
+```sql
+SELECT *
+FROM analytics.v_price_history
+ORDER BY symbol, price_date DESC
+LIMIT 20;
+```
+
+Check cumulative returns:
+
+```sql
+SELECT *
+FROM analytics.v_cumulative_returns
+ORDER BY symbol, price_date DESC
+LIMIT 20;
+```
+
+Check daily returns:
+
+```sql
+SELECT *
+FROM analytics.v_daily_returns
+ORDER BY symbol, price_date DESC
+LIMIT 20;
+```
+
+## Git Commands
+
+Check repository status:
+
+```bash
+git status
+```
+
+Example commit for the local MVP:
+
+```bash
+git add README.md .gitignore .env.example requirements.txt docker-compose.yml config sql src dashboard
+git commit -m "Add local market data pipeline MVP"
+```
+
+Example commit after dashboard improvements:
+
+```bash
+git add src/read_data.py dashboard/app.py README.md
+git commit -m "Improve dashboard analytics and documentation"
+```
+
+## Roadmap
+
+### Phase 1 — Local MVP and Cleanup
+
+Status: **in progress / mostly complete**
 
 - Set up PostgreSQL with Docker Compose
-- Create raw, staging, analytics, and metadata schemas
+- Create raw, staging, analytics and metadata schemas
 - Connect to Alpha Vantage API using an API key
 - Load raw JSON responses into PostgreSQL
 - Parse daily price data
-- Load data into analytics tables
-- Build basic SQL views
-- Create a simple Streamlit dashboard
+- Upsert data into `staging.daily_prices`
+- Create analytics views
+- Build Streamlit dashboard
+- Add KPI cards, volume chart, cumulative returns and daily returns
+- Add pipeline monitoring
+- Improve README documentation
 
-### Version 2 — Data Engineering Improvements
+### Phase 2 — Cloud PostgreSQL
 
-- Add robust logging
-- Add retry logic
-- Add rate-limit handling
-- Improve error handling
-- Add incremental loading
+Planned:
+
+- Choose Neon or Supabase Postgres
+- Create a cloud PostgreSQL database
+- Add cloud database credentials locally
+- Run SQL scripts on the cloud database
+- Test the local pipeline writing to cloud PostgreSQL
+- Test the local dashboard reading from cloud PostgreSQL
+
+### Phase 3 — GitHub Actions
+
+Planned:
+
+- Add GitHub repository secrets
+- Create a GitHub Actions workflow
+- Add manual `workflow_dispatch` trigger
+- Add scheduled daily pipeline run
+- Run the pipeline from GitHub Actions
+- Write data into the cloud PostgreSQL database
+
+Planned GitHub Secrets:
+
+```text
+ALPHA_VANTAGE_API_KEY
+POSTGRES_HOST
+POSTGRES_PORT
+POSTGRES_DB
+POSTGRES_USER
+POSTGRES_PASSWORD
+```
+
+### Phase 4 — Streamlit Community Cloud
+
+Planned:
+
+- Deploy the dashboard from GitHub
+- Set the entry point to `dashboard/app.py`
+- Configure Streamlit Secrets
+- Connect the dashboard to cloud PostgreSQL
+- Test the public dashboard link
+- Add the live dashboard link to this README
+
+### Phase 5 — Portfolio Polish
+
+Planned:
+
+- Add dashboard screenshots
+- Add an architecture diagram
+- Add a LinkedIn-ready project summary
+- Add more explanation about the data model
 - Add data quality checks
-- Add unit tests
-
-### Version 3 — Analytics Layer
-
-- Add daily returns
-- Add cumulative returns
-- Add moving averages
-- Add volatility metrics
-- Add benchmark comparison
-- Add monthly performance views
-
-### Version 4 — Dashboard Improvements
-
-- Add filters by symbol and date range
-- Add performance comparison charts
-- Add pipeline monitoring page
-- Add data freshness indicators
-- Add interactive metrics
-
-### Version 5 — Advanced Extensions
-
-Possible future extensions:
-
-- Add more ETF symbols
-- Add crypto market data
-- Add financial fundamentals
-- Add a second API provider
-- Add dbt for transformations
-- Add Prefect for orchestration
-- Add FastAPI to expose the analytics data through a custom API
-- Add Metabase or Grafana
-- Add GitHub Actions for automated checks
+- Add tests
+- Add financial disclaimer and limitations
 
 ## Learning Goals
 
@@ -467,33 +730,38 @@ This project helps develop practical experience with:
 - Incremental data loading
 - SQL transformations
 - Data quality thinking
-- Dashboarding
+- Dashboarding with Streamlit
 - Local development with Docker
+- Scheduling concepts
+- Cloud database deployment
+- GitHub Actions automation
 - Building portfolio-ready data engineering projects
 
-## Security Notes
+## Limitations
 
-The `.env` file should never be committed to GitHub.
+Current limitations:
 
-Only `.env.example` should be included in the repository.
-
-Make sure `.gitignore` contains:
-
-```text
-.env
-.venv/
-__pycache__/
-*.pyc
-```
+- The Alpha Vantage free tier has strict request limits
+- The current version uses a small active symbol list
+- The local PostgreSQL database is not publicly accessible
+- The dashboard currently depends on a running PostgreSQL database
+- The first version focuses only on daily prices
+- This project does not yet include automated tests or data quality checks
 
 ## Financial Disclaimer
 
 This project is for educational and portfolio purposes only.
 
-The data, dashboards, and analyses produced by this project should not be considered financial advice or investment recommendations.
+The data, dashboards and analyses produced by this project should not be considered financial advice or investment recommendations.
 
-## Project Status
+## Next Steps
 
-This project is currently under development.
+Immediate next steps:
 
-The first milestone is to build a working MVP that extracts daily market data, stores it in PostgreSQL, transforms it into analytics-ready tables, and visualizes the results in a Streamlit dashboard.
+1. Test the improved local dashboard
+2. Commit the updated dashboard and README
+3. Choose Neon or Supabase for cloud PostgreSQL
+4. Run the SQL scripts on the cloud database
+5. Test the local pipeline against the cloud database
+6. Add GitHub Actions scheduling
+7. Deploy the dashboard to Streamlit Community Cloud
