@@ -19,3 +19,10 @@ CREATE TABLE IF NOT EXISTS raw.api_responses (
     status_code INTEGER,
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+------------
+
+SELECT *
+FROM metadata.pipeline_runs
+ORDER BY started_at DESC
+LIMIT 5;

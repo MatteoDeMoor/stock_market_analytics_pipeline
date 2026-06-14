@@ -10,3 +10,10 @@ CREATE TABLE IF NOT EXISTS staging.daily_prices (
     ingested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (symbol, price_date)
 );
+
+------------
+
+SELECT symbol, COUNT(*) AS records
+FROM staging.daily_prices
+GROUP BY symbol
+ORDER BY symbol;

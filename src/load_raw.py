@@ -1,9 +1,9 @@
-import json
 import uuid
 
 from psycopg.types.json import Json
 
 from db import get_connection
+
 
 def create_pipeline_run(pipeline_name: str) -> str:
     run_id = str(uuid.uuid4())
@@ -32,7 +32,7 @@ def insert_raw_api_response(
     request_params: dict,
     response_json: dict,
     status_code: int,
-) -> None:
+) -> str:
     response_id = str(uuid.uuid4())
 
     query = """
@@ -65,8 +65,15 @@ def insert_raw_api_response(
                 ),
             )
 
+    return response_id
 
-def finish_pipeline_run(run_id: str, status: str, records_loaded: int = 0, error_message: str | None = None) -> None:
+
+def finish_pipeline_run(
+    run_id: str,
+    status: str,
+    records_loaded: int = 0,
+    error_message: str | None = None,
+) -> None:
     query = """
         UPDATE metadata.pipeline_runs
         SET

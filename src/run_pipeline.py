@@ -7,7 +7,7 @@ from load_raw import (
     finish_pipeline_run,
     insert_raw_api_response,
 )
-from transform_prices import transform_latest_raw_response_to_staging
+from transform_prices import transform_raw_response_to_staging
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
                 "symbol": symbol,
             }
 
-            insert_raw_api_response(
+            response_id = insert_raw_api_response(
                 run_id=run_id,
                 source_name="Alpha Vantage",
                 endpoint="TIME_SERIES_DAILY",
@@ -40,7 +40,7 @@ def main():
                 status_code=200,
             )
 
-            records_loaded = transform_latest_raw_response_to_staging()
+            records_loaded = transform_raw_response_to_staging(response_id)
             total_records_loaded += records_loaded
 
             print(f"Loaded {records_loaded} records for {symbol}.")

@@ -1,13 +1,12 @@
 from db import get_connection
 
 
-def transform_latest_raw_response_to_staging() -> int:
+def transform_raw_response_to_staging(response_id: str) -> int:
     select_query = """
         SELECT response_id, symbol, response_json
         FROM raw.api_responses
-        WHERE endpoint = 'TIME_SERIES_DAILY'
-        ORDER BY ingested_at DESC
-        LIMIT 1
+        WHERE response_id = %s
+          AND endpoint = 'TIME_SERIES_DAILY'
     """
 
     upsert_query = """
@@ -35,19 +34,21 @@ def transform_latest_raw_response_to_staging() -> int:
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(select_query)
+            cur.execute(select_query, (response_id,))
             row = cur.fetchone()
 
             if row is None:
-                print("No raw API response found.")
+                print(f"No raw API response found for response_id: {response_id}")
                 return 0
 
-            response_id, symbol, response_json = row
+            source_response_id, symbol, response_json = row
 
             time_series = response_json.get("Time Series (Daily)")
 
             if not time_series:
-                raise ValueError("Missing 'Time Series (Daily)' in raw response.")
+                raise ValueError(
+                    f"Missing 'Time Series (Daily)' in raw response for symbol {symbol}."
+                )
 
             records_loaded = 0
 
@@ -62,9 +63,10 @@ def transform_latest_raw_response_to_staging() -> int:
                         values.get("3. low"),
                         values.get("4. close"),
                         values.get("5. volume"),
-                        response_id,
+                        source_response_id,
                     ),
                 )
+
                 records_loaded += 1
 
     return records_loaded
