@@ -3,7 +3,7 @@ name: Daily Market Data Pipeline
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 23 * * 1-5"
+    - cron: "0 21 * * 1-5"
 
 jobs:
   run-pipeline:
@@ -34,3 +34,4 @@ jobs:
 
       - name: Run market data pipeline
         run: python src/run_pipeline.py
+        
