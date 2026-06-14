@@ -19,6 +19,35 @@ from read_data import (
     get_price_history,
 )
 
+@st.cache_data(ttl=3600)
+def load_available_symbols():
+    return get_available_symbols()
+
+
+@st.cache_data(ttl=3600)
+def load_price_history(symbol: str):
+    return get_price_history(symbol)
+
+
+@st.cache_data(ttl=3600)
+def load_cumulative_returns(symbol: str):
+    return get_cumulative_returns(symbol)
+
+
+@st.cache_data(ttl=3600)
+def load_daily_returns(symbol: str):
+    return get_daily_returns(symbol)
+
+
+@st.cache_data(ttl=3600)
+def load_latest_prices():
+    return get_latest_prices()
+
+
+@st.cache_data(ttl=3600)
+def load_pipeline_runs():
+    return get_pipeline_runs()
+
 st.set_page_config(
     page_title="Market Data Dashboard",
     page_icon="📈",
@@ -38,7 +67,7 @@ st.caption(
 # -----------------------------
 # Load data
 # -----------------------------
-symbols = get_available_symbols()
+symbols = load_available_symbols()
 
 if not symbols:
     st.warning("No symbols found. Run the pipeline first.")
@@ -59,11 +88,11 @@ st.sidebar.markdown("---")
 st.sidebar.caption("Data source: PostgreSQL analytics views")
 
 
-price_history = get_price_history(selected_symbol)
-cumulative_returns = get_cumulative_returns(selected_symbol)
-latest_prices = get_latest_prices()
-pipeline_runs = get_pipeline_runs()
-daily_returns = get_daily_returns(selected_symbol)
+price_history = load_price_history(selected_symbol)
+cumulative_returns = load_cumulative_returns(selected_symbol)
+daily_returns = load_daily_returns(selected_symbol)
+latest_prices = load_latest_prices()
+pipeline_runs = load_pipeline_runs()
 
 if price_history.empty:
     st.warning(f"No price history found for {selected_symbol}.")
