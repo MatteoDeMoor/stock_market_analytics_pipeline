@@ -3,6 +3,18 @@ import pandas as pd
 from db import get_engine
 
 
+def read_sql(query: str, params: dict | None = None) -> pd.DataFrame:
+    """
+    Execute a SQL query and return the result as a pandas DataFrame.
+
+    This helper keeps database reading logic in one place.
+    """
+    engine = get_engine()
+
+    with engine.connect() as conn:
+        return pd.read_sql(query, conn, params=params)
+
+
 def get_available_symbols() -> list[str]:
     query = """
         SELECT DISTINCT symbol
@@ -10,10 +22,7 @@ def get_available_symbols() -> list[str]:
         ORDER BY symbol;
     """
 
-    engine = get_engine()
-
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
+    df = read_sql(query)
 
     return df["symbol"].tolist()
 
@@ -33,12 +42,8 @@ def get_price_history(symbol: str) -> pd.DataFrame:
         ORDER BY price_date;
     """
 
-    engine = get_engine()
+    return read_sql(query, params={"symbol": symbol})
 
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn, params={"symbol": symbol})
-
-    return df
 
 def get_latest_prices() -> pd.DataFrame:
     query = """
@@ -51,12 +56,24 @@ def get_latest_prices() -> pd.DataFrame:
         ORDER BY symbol;
     """
 
-    engine = get_engine()
+    return read_sql(query)
 
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
 
-    return df
+def get_daily_returns(symbol: str) -> pd.DataFrame:
+    query = """
+        SELECT
+            symbol,
+            price_date,
+            close_price,
+            previous_close_price,
+            daily_return_pct
+        FROM analytics.v_daily_returns
+        WHERE symbol = %(symbol)s
+        ORDER BY price_date;
+    """
+
+    return read_sql(query, params={"symbol": symbol})
+
 
 def get_cumulative_returns(symbol: str) -> pd.DataFrame:
     query = """
@@ -70,16 +87,13 @@ def get_cumulative_returns(symbol: str) -> pd.DataFrame:
         ORDER BY price_date;
     """
 
-    engine = get_engine()
+    return read_sql(query, params={"symbol": symbol})
 
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn, params={"symbol": symbol})
-
-    return df
 
 def get_pipeline_runs() -> pd.DataFrame:
     query = """
         SELECT
+            run_id,
             pipeline_name,
             started_at,
             finished_at,
@@ -91,9 +105,4 @@ def get_pipeline_runs() -> pd.DataFrame:
         LIMIT 10;
     """
 
-    engine = get_engine()
-
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn)
-
-    return df
+    return read_sql(query)
