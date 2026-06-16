@@ -12,12 +12,11 @@ sys.path.append(str(SRC_PATH))
 
 from read_data import (
     get_available_symbols,
-    get_cumulative_returns,
-    get_daily_returns,
     get_latest_prices,
     get_pipeline_runs,
-    get_price_history,
+    get_symbol_performance,
 )
+
 
 @st.cache_data(ttl=3600)
 def load_available_symbols():
@@ -25,18 +24,8 @@ def load_available_symbols():
 
 
 @st.cache_data(ttl=3600)
-def load_price_history(symbol: str):
-    return get_price_history(symbol)
-
-
-@st.cache_data(ttl=3600)
-def load_cumulative_returns(symbol: str):
-    return get_cumulative_returns(symbol)
-
-
-@st.cache_data(ttl=3600)
-def load_daily_returns(symbol: str):
-    return get_daily_returns(symbol)
+def load_symbol_performance(symbol: str):
+    return get_symbol_performance(symbol)
 
 
 @st.cache_data(ttl=3600)
@@ -47,6 +36,7 @@ def load_latest_prices():
 @st.cache_data(ttl=3600)
 def load_pipeline_runs():
     return get_pipeline_runs()
+
 
 st.set_page_config(
     page_title="Market Data Dashboard",
@@ -88,35 +78,27 @@ st.sidebar.markdown("---")
 st.sidebar.caption("Data source: PostgreSQL analytics views")
 
 
-price_history = load_price_history(selected_symbol)
-cumulative_returns = load_cumulative_returns(selected_symbol)
-daily_returns = load_daily_returns(selected_symbol)
+symbol_performance = load_symbol_performance(selected_symbol)
 latest_prices = load_latest_prices()
 pipeline_runs = load_pipeline_runs()
 
-if price_history.empty:
-    st.warning(f"No price history found for {selected_symbol}.")
+if symbol_performance.empty:
+    st.warning(f"No performance data found for {selected_symbol}.")
     st.stop()
 
 
 # -----------------------------
 # Prepare selected-symbol values
 # -----------------------------
-price_history_sorted = price_history.sort_values("price_date")
+symbol_performance_sorted = symbol_performance.sort_values("price_date")
 
-latest_row = price_history_sorted.iloc[-1]
-first_row = price_history_sorted.iloc[0]
+latest_row = symbol_performance_sorted.iloc[-1]
 
 latest_date = latest_row["price_date"]
 latest_close = latest_row["close_price"]
 latest_volume = latest_row["volume"]
-
-first_close = first_row["close_price"]
-
-if first_close is not None and first_close != 0:
-    total_return_pct = ((latest_close - first_close) / first_close) * 100
-else:
-    total_return_pct = None
+daily_return_pct = latest_row["daily_return_pct"]
+total_return_pct = latest_row["cumulative_return_pct"]
 
 
 # -----------------------------
@@ -124,7 +106,7 @@ else:
 # -----------------------------
 st.subheader(f"Overview: {selected_symbol}")
 
-kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+kpi_col1, kpi_col2, kpi_col3, kpi_col4, kpi_col5 = st.columns(5)
 
 kpi_col1.metric(
     label="Latest close price",
@@ -141,13 +123,24 @@ kpi_col3.metric(
     value=f"{latest_volume:,.0f}",
 )
 
-if total_return_pct is not None:
+if daily_return_pct is not None:
     kpi_col4.metric(
+        label="Daily return",
+        value=f"{daily_return_pct:.2f}%",
+    )
+else:
+    kpi_col4.metric(
+        label="Daily return",
+        value="N/A",
+    )
+
+if total_return_pct is not None:
+    kpi_col5.metric(
         label="Total return",
         value=f"{total_return_pct:.2f}%",
     )
 else:
-    kpi_col4.metric(
+    kpi_col5.metric(
         label="Total return",
         value="N/A",
     )
@@ -185,7 +178,7 @@ with tab_overview:
     st.subheader(f"Close price trend: {selected_symbol}")
 
     fig_price_overview = px.line(
-        price_history_sorted,
+        symbol_performance_sorted,
         x="price_date",
         y="close_price",
         title=f"{selected_symbol} close price over time",
@@ -207,7 +200,7 @@ with tab_prices:
     st.subheader(f"Price history: {selected_symbol}")
 
     fig_price = px.line(
-        price_history_sorted,
+        symbol_performance_sorted,
         x="price_date",
         y="close_price",
         title=f"{selected_symbol} close price history",
@@ -224,7 +217,7 @@ with tab_prices:
     st.subheader(f"Volume history: {selected_symbol}")
 
     fig_volume = px.bar(
-        price_history_sorted,
+        symbol_performance_sorted,
         x="price_date",
         y="volume",
         title=f"{selected_symbol} trading volume over time",
@@ -244,54 +237,44 @@ with tab_prices:
 with tab_returns:
     st.subheader(f"Cumulative return: {selected_symbol}")
 
-    if cumulative_returns.empty:
-        st.info("No cumulative return data available.")
-    else:
-        cumulative_returns_sorted = cumulative_returns.sort_values("price_date")
+    fig_return = px.line(
+        symbol_performance_sorted,
+        x="price_date",
+        y="cumulative_return_pct",
+        title=f"{selected_symbol} cumulative return over time",
+        markers=True,
+    )
 
-        fig_return = px.line(
-            cumulative_returns_sorted,
-            x="price_date",
-            y="cumulative_return_pct",
-            title=f"{selected_symbol} cumulative return over time",
-            markers=True,
-        )
+    fig_return.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Cumulative return (%)",
+    )
 
-        fig_return.update_layout(
-            xaxis_title="Date",
-            yaxis_title="Cumulative return (%)",
-        )
-
-        st.plotly_chart(fig_return, width="stretch")
+    st.plotly_chart(fig_return, width="stretch")
 
     st.subheader(f"Daily returns: {selected_symbol}")
 
-    if daily_returns.empty:
-        st.info("No daily return data available.")
-    else:
-        daily_returns_sorted = daily_returns.sort_values("price_date")
+    fig_daily_returns = px.bar(
+        symbol_performance_sorted,
+        x="price_date",
+        y="daily_return_pct",
+        title=f"{selected_symbol} daily return (%)",
+    )
 
-        fig_daily_returns = px.bar(
-            daily_returns_sorted,
-            x="price_date",
-            y="daily_return_pct",
-            title=f"{selected_symbol} daily return (%)",
-        )
+    fig_daily_returns.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Daily return (%)",
+    )
 
-        fig_daily_returns.update_layout(
-            xaxis_title="Date",
-            yaxis_title="Daily return (%)",
-        )
+    st.plotly_chart(fig_daily_returns, width="stretch")
 
-        st.plotly_chart(fig_daily_returns, width="stretch")
+    st.subheader("Latest return rows")
 
-        st.subheader("Latest return rows")
-
-        st.dataframe(
-            daily_returns_sorted.sort_values("price_date", ascending=False).head(10),
-            width="stretch",
-            hide_index=True,
-        )
+    st.dataframe(
+        symbol_performance_sorted.sort_values("price_date", ascending=False).head(10),
+        width="stretch",
+        hide_index=True,
+    )
 
 
 # -----------------------------
@@ -301,7 +284,7 @@ with tab_data:
     st.subheader(f"Latest rows: {selected_symbol}")
 
     st.dataframe(
-        price_history_sorted.sort_values("price_date", ascending=False).head(20),
+        symbol_performance_sorted.sort_values("price_date", ascending=False).head(20),
         width="stretch",
         hide_index=True,
     )
