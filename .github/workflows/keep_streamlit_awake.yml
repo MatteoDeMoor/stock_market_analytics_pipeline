@@ -12,6 +12,7 @@ jobs:
     steps:
       - name: Ping Streamlit app
         run: |
-          curl --location --max-time 60 \
-          "https://stockmarketanalyticspipeline.streamlit.app/_stcore/health" \
-          || echo "Ping failed, app may be waking up."
+          curl -sS -o /dev/null -w "HTTP status: %{http_code}\n" \
+          --max-time 60 \
+          "https://stockmarketanalyticspipeline.streamlit.app/" \
+          || echo "Ping failed, app may be sleeping or waking up."
