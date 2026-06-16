@@ -16,6 +16,7 @@ def main():
 
     run_id = create_pipeline_run(pipeline_name)
     total_records_loaded = 0
+    failed_symbols = []
 
     try:
         print(f"Starting pipeline for {len(symbols)} symbols.")
@@ -23,7 +24,30 @@ def main():
         for symbol in symbols:
             print(f"\nProcessing symbol: {symbol}")
 
-            data = fetch_daily_prices(symbol)
+            try:
+                data = fetch_daily_prices(symbol)
+            except ValueError as error:
+                error_message = str(error)
+                failed_symbols.append(symbol)
+
+                print(f"Skipping {symbol}: {error_message}")
+
+                request_params = {
+                    "function": "TIME_SERIES_DAILY",
+                    "symbol": symbol,
+                }
+
+                insert_raw_api_response(
+                    run_id=run_id,
+                    source_name="Alpha Vantage",
+                    endpoint="TIME_SERIES_DAILY",
+                    symbol=symbol,
+                    request_params=request_params,
+                    response_json={"error": error_message},
+                    status_code=429,
+                )
+
+                continue
 
             request_params = {
                 "function": "TIME_SERIES_DAILY",
@@ -47,16 +71,27 @@ def main():
 
             time.sleep(12)
 
+        if failed_symbols:
+            status = "PARTIAL_SUCCESS"
+            error_message = f"Failed symbols: {', '.join(failed_symbols)}"
+        else:
+            status = "SUCCESS"
+            error_message = None
+
         finish_pipeline_run(
             run_id=run_id,
-            status="SUCCESS",
+            status=status,
             records_loaded=total_records_loaded,
+            error_message=error_message,
         )
 
         print(
-            f"\nPipeline finished successfully. "
+            f"\nPipeline finished with status {status}. "
             f"Loaded {total_records_loaded} records in total."
         )
+
+        if failed_symbols:
+            print(f"Failed symbols: {', '.join(failed_symbols)}")
 
     except Exception as error:
         finish_pipeline_run(
