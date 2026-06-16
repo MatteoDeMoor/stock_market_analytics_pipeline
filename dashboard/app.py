@@ -57,7 +57,8 @@ st.caption(
 # -----------------------------
 # Load data
 # -----------------------------
-symbols = load_available_symbols()
+with st.spinner("Loading available symbols..."):
+    symbols = load_available_symbols()
 
 if not symbols:
     st.warning("No symbols found. Run the pipeline first.")
@@ -78,9 +79,10 @@ st.sidebar.markdown("---")
 st.sidebar.caption("Data source: PostgreSQL analytics views")
 
 
-symbol_performance = load_symbol_performance(selected_symbol)
-latest_prices = load_latest_prices()
-pipeline_runs = load_pipeline_runs()
+with st.spinner(f"Loading market data for {selected_symbol}..."):
+    symbol_performance = load_symbol_performance(selected_symbol)
+    latest_prices = load_latest_prices()
+    pipeline_runs = load_pipeline_runs()
 
 if symbol_performance.empty:
     st.warning(f"No performance data found for {selected_symbol}.")
