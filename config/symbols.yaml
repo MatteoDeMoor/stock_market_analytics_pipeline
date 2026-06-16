@@ -8,23 +8,23 @@ symbols:
   - META   # Meta Platforms Inc.
   - TSLA   # Tesla Inc.
 
-  # Finance / payments
-  - JPM    # JPMorgan Chase & Co.
-  - V      # Visa Inc.
-  - MA     # Mastercard Inc.
+  # # Finance / payments
+  # - JPM    # JPMorgan Chase & Co.
+  # - V      # Visa Inc.
+  # - MA     # Mastercard Inc.
 
-  # Defensive / healthcare / consumer
-  - JNJ    # Johnson & Johnson
-  - PG     # Procter & Gamble Co.
-  - UNH    # UnitedHealth Group Inc.
+  # # Defensive / healthcare / consumer
+  # - JNJ    # Johnson & Johnson
+  # - PG     # Procter & Gamble Co.
+  # - UNH    # UnitedHealth Group Inc.
 
-  # Benchmark ETFs
-  - SPY    # SPDR S&P 500 ETF Trust
-  - QQQ    # Invesco QQQ Trust
+  # # Benchmark ETFs
+  # - SPY    # SPDR S&P 500 ETF Trust
+  # - QQQ    # Invesco QQQ Trust
 
-  - NFLX   # Netflix Inc.
-  - AMD    # Advanced Micro Devices Inc.
-  - HD     # The Home Depot Inc.
-  - VTI    # Vanguard Total Stock Market ETF
-  - IWM    # iShares Russell 2000 ETF
-  - GLD    # SPDR Gold Shares
+  # - NFLX   # Netflix Inc.
+  # - AMD    # Advanced Micro Devices Inc.
+  # - HD     # The Home Depot Inc.
+  # - VTI    # Vanguard Total Stock Market ETF
+  # - IWM    # iShares Russell 2000 ETF
+  # - GLD    # SPDR Gold Shares
