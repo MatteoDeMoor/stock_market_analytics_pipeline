@@ -3,16 +3,24 @@ name: Keep Streamlit App Awake
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */3 * * *"
+    # GitHub cron runs in UTC. This runs every 3 hours at minute 17.
+    - cron: "17 */3 * * *"
+
+permissions:
+  contents: write
 
 jobs:
-  ping:
+  keep-awake:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Ping Streamlit app
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create empty commit
         run: |
-          curl -sS -o /dev/null -w "HTTP status: %{http_code}\n" \
-          --max-time 60 \
-          "https://stockmarketanalyticspipeline.streamlit.app/" \
-          || echo "Ping failed, app may be sleeping or waking up."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git commit --allow-empty -m "chore: keep Streamlit awake [skip ci]"
+          git push
